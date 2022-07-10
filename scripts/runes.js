@@ -1,7 +1,5 @@
-const fs = require('fs')
-const os = require('os')
 const path = require('path')
-const readline = require('readline')
+const { readTxt, readJsonSync, writeJsonSync } = require('./utils/io')
 
 // paths
 const root = path.join(__dirname, '..')
@@ -14,44 +12,51 @@ const dirOriginData = path.join(root, 'origin', 'data')
 const dirExcel = path.join(dirOriginData, 'global', 'excel')
 const txtRunes = path.join(dirExcel, 'runes.txt')
 
-const readJsonSync = (jsonFilePath) => {
-  return require(jsonFilePath)
-}
+// const getCompletedRunes = async (txtFilePath) => {
+//   const rl = readline.createInterface({
+//     input: fs.createReadStream(txtFilePath),
+//   })
 
-const writeJsonSync = (jsonFilePath, jsonData) => {
-  const content = JSON.stringify(jsonData, undefined, 2)
-  fs.writeFileSync(jsonFilePath, `${content}${os.EOL}`)
-}
+//   let isFirstLine = true
+//   let length
+//   const completedRunes = []
+//   for await (const line of rl) {
+//     const values = line.trim().split('\t')
+//     if (isFirstLine) {
+//       length = values.length
+//       isFirstLine = false
+//     } else if (length === values.length && values[2]) {
+//       completedRunes.push(values[0])
+//     }
+//   }
+//   return completedRunes
+// }
 
-const getCompletedRunes = async (txtFilePath) => {
-  const rl = readline.createInterface({
-    input: fs.createReadStream(txtFilePath),
-  })
+// getCompletedRunes(txtRunes).then((completedRunes) => {
+//   const itemRunes = readJsonSync(jsonItemRunes)
+//   if (Array.isArray(itemRunes)) {
+//     const length = itemRunes.length
+//     for (let index = 0; index < length; index++) {
+//       const item = itemRunes[index]
+//       if (!item.Key.startsWith('Runeword') || !completedRunes.includes(item.Key)) continue
+//       item.zhTW = `${item.zhTW} ${item.enUS}`
+//     }
+//   }
+//   writeJsonSync(jsonItemRunes, itemRunes)
+// })
 
-  let isFirstLine = true
-  let length
-  const completedRunes = []
-  for await (const line of rl) {
-    const values = line.trim().split('\t')
-    if (isFirstLine) {
-      length = values.length
-      isFirstLine = false
-    } else if (length === values.length && values[2]) {
-      completedRunes.push(values[0])
-    }
-  }
-  return completedRunes
-}
-
-getCompletedRunes(txtRunes).then((completedRunes) => {
+const updateItemRune = (txtRunesMap) => {
   const itemRunes = readJsonSync(jsonItemRunes)
-  if (Array.isArray(itemRunes)) {
-    const length = itemRunes.length
-    for (let index = 0; index < length; index++) {
-      const item = itemRunes[index]
-      if (!item.Key.startsWith('Runeword') || !completedRunes.includes(item.Key)) continue
-      item.zhTW = `${item.zhTW} ${item.enUS}`
-    }
+  if (!Array.isArray(itemRunes)) return
+
+  const length = itemRunes.length
+  for (let i = 0; i < length; i++) {
+    const rune = itemRunes[i]
+    const { Key: runeKey } = rune
+    if (!runeKey.startsWith('Runeword') || !txtRunesMap[runeKey]?.complete) continue
+    if (!rune.zhTW.includes(rune.enUS)) rune.zhTW = `${rune.zhTW} ${rune.enUS}`
   }
   writeJsonSync(jsonItemRunes, itemRunes)
-})
+}
+
+readTxt(txtRunes, 'Name').then(updateItemRune)
